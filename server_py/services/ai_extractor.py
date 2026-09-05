@@ -18,6 +18,7 @@ except ImportError:
     HAS_GENAI_LIB = False
 
 KNOWN_MERCHANTS = [
+    {"name": "Domino's Pizza (Jubilant FoodWorks)", "regex": re.compile(r"domino'?s|jubilant\s*foodworks", re.IGNORECASE), "category": "meals_dining"},
     {"name": "Blue Tokai Coffee Roasters", "regex": re.compile(r"blue\s*tokai", re.IGNORECASE), "category": "meals_dining"},
     {"name": "Starbucks Coffee", "regex": re.compile(r"starbucks", re.IGNORECASE), "category": "meals_dining"},
     {"name": "Swiggy - Food Delivery", "regex": re.compile(r"swiggy", re.IGNORECASE), "category": "meals_dining"},
@@ -118,35 +119,38 @@ def extract_with_heuristics(raw_text: str) -> Dict[str, Any]:
     # 4. Date
     date = datetime.now().strftime("%Y-%m-%d")
     date_matches = [
-        re.search(r"(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})", text),
-        re.search(r"(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{2,4})", text, re.IGNORECASE),
-        re.search(r"([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})", text, re.IGNORECASE)
+        re.search(r"\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-]((?:19|20)\d{2})\b", text),
+        re.search(r"\b(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s]((?:19|20)\d{2})\b", text, re.IGNORECASE),
+        re.search(r"\b([A-Za-z]{3,9})\s+(\d{1,2}),?\s+((?:19|20)\d{2})\b", text, re.IGNORECASE)
     ]
     for dm in date_matches:
         if dm:
-            try:
-                dt = datetime.strptime(dm.group(0), "%d/%m/%Y")
-                date = dt.strftime("%Y-%m-%d")
-                break
-            except Exception:
+            raw_d = dm.group(0)
+            for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%d-%b-%Y", "%b %d, %Y", "%B %d, %Y"):
                 try:
-                    dt = datetime.strptime(dm.group(0), "%d-%b-%Y")
+                    dt = datetime.strptime(raw_d, fmt)
                     date = dt.strftime("%Y-%m-%d")
                     break
                 except Exception:
                     pass
+            if date != datetime.now().strftime("%Y-%m-%d"):
+                break
 
     # 5. Line items
     extracted_items = []
     lines = [l.strip() for l in re.split(r"[\n,;]", text) if l.strip()]
+    noise_tokens = {"order", "phone", "invoice", "server", "code", "tent", "due", "balance", "carry out", "total", "subtot"}
     for line in lines:
-        im = re.match(r"^([A-Za-z0-9\s\-]+?)\s*(?:[-:]|\b)\s*(?:rs\.?|₹|\$|€)?\s*([\d,]+(?:\.\d{2})?)$", line, re.IGNORECASE)
-        if im and len(extracted_items) < 5:
+        im = re.match(r"^([A-Za-z0-9\s\-\(\)\/\@\%]+?)\s*(?:[-:]|\b)\s*(?:rs\.?|₹|\$|€)?\s*([\d,]+(?:\.\d{2})?)$", line, re.IGNORECASE)
+        if im and len(extracted_items) < 6:
+            item_name = im.group(1).strip()
             try:
-                extracted_items.append({
-                    "name": im.group(1).strip(),
-                    "amount": float(im.group(2).replace(",", ""))
-                })
+                item_amt = float(im.group(2).replace(",", ""))
+                if 0 < item_amt <= 50000 and not any(k in item_name.lower() for k in noise_tokens):
+                    extracted_items.append({
+                        "name": item_name,
+                        "amount": item_amt
+                    })
             except ValueError:
                 pass
 

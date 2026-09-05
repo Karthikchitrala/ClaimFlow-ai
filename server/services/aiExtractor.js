@@ -76,6 +76,7 @@ export function extractWithHeuristics(rawText) {
   // 3. Merchant Detection
   let merchant = "Unknown Vendor";
   const knownMerchants = [
+    { name: "Domino's Pizza (Jubilant FoodWorks)", regex: /domino'?s|jubilant\s*foodworks/i, category: "meals_dining" },
     { name: "Blue Tokai Coffee Roasters", regex: /blue\s*tokai/i, category: "meals_dining" },
     { name: "Starbucks Coffee", regex: /starbucks/i, category: "meals_dining" },
     { name: "Swiggy - Food Delivery", regex: /swiggy/i, category: "meals_dining" },
@@ -131,22 +132,28 @@ export function extractWithHeuristics(rawText) {
   // 4. Date Extraction
   let date = new Date().toISOString().split("T")[0];
   const datePatterns = [
-    /(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/, // 14/08/2026 or 14-08-2026
-    /(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{2,4})/i, // 14-Aug-2026 or 04 AUG 2026
-    /([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})/i // Aug 14, 2026
+    /\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-]((?:19|20)\d{2})\b/, // 11/01/2020
+    /\b(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s]((?:19|20)\d{2})\b/i, // 14-Aug-2026
+    /\b([A-Za-z]{3,9})\s+(\d{1,2}),?\s+((?:19|20)\d{2})\b/i // Aug 14, 2026
   ];
 
   for (const dp of datePatterns) {
     const match = text.match(dp);
     if (match) {
-      try {
-        const parsedDate = new Date(match[0]);
-        if (!isNaN(parsedDate.getTime())) {
-          date = parsedDate.toISOString().split("T")[0];
-          break;
+      const parts = match[0].split(/[\/\.-]/);
+      if (parts.length === 3) {
+        // Handle DD/MM/YYYY or MM/DD/YYYY
+        let d = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        let y = parseInt(parts[2], 10);
+        if (m > 12 && d <= 12) {
+          [d, m] = [m, d];
         }
-      } catch (e) {
-        // keep fallback
+        if (y < 100) y += 2000;
+        const mm = String(m).padStart(2, "0");
+        const dd = String(d).padStart(2, "0");
+        date = `${y}-${mm}-${dd}`;
+        break;
       }
     }
   }
@@ -154,13 +161,18 @@ export function extractWithHeuristics(rawText) {
   // 5. Line items extraction
   const extractedItems = [];
   const lines = text.split(/[\n,;]/).map(l => l.trim()).filter(Boolean);
+  const noiseTokens = ["order", "phone", "invoice", "server", "code", "tent", "due", "balance", "carry out", "total", "subtot"];
   for (const line of lines) {
-    const itemMatch = line.match(/^([A-Za-z0-9\s\-]+?)\s*(?:[-:]|\b)\s*(?:rs\.?|₹|\$|€)?\s*([\d,]+(?:\.\d{2})?)$/i);
-    if (itemMatch && extractedItems.length < 5) {
-      extractedItems.push({
-        name: itemMatch[1].trim(),
-        amount: parseFloat(itemMatch[2].replace(/,/g, ""))
-      });
+    const itemMatch = line.match(/^([A-Za-z0-9\s\-\(\)\/\@\%]+?)\s*(?:[-:]|\b)\s*(?:rs\.?|₹|\$|€)?\s*([\d,]+(?:\.\d{2})?)$/i);
+    if (itemMatch && extractedItems.length < 6) {
+      const itemName = itemMatch[1].trim();
+      const itemAmt = parseFloat(itemMatch[2].replace(/,/g, ""));
+      if (itemAmt > 0 && itemAmt <= 50000 && !noiseTokens.some(k => itemName.toLowerCase().includes(k))) {
+        extractedItems.push({
+          name: itemName,
+          amount: itemAmt
+        });
+      }
     }
   }
 

@@ -5,6 +5,17 @@ import { state } from "./state.js";
 import { openDuplicateModal } from "./duplicateModal.js";
 
 const TEMPLATES = {
+  dominos: `TAX INVOICE - JUBILANT FOODWORKS LTD. (Domino's Pizza)
+COLES ROAD, COX TOWN, BANGALORE-05 (Phone: 9060316978)
+Invoice Number: 66103/20/44492 | Order: 159 | Date: 11/01/2020 7:56 PM
+Customer: Akshay pol | Zero Contact Pick-Up | 8722180619 | Tent: egv-786611679
+1 Reg HT PM Capsicum (Gk): 99.00
+1 Reg HT PM Onion (Gi): 99.00
+1 Reg HT PM Gold Corn (Gj): 199.00
+1 Reg HT PM Gold Corn (Gj): 199.00
+SubTot: 596.00 | CGST @ 2.5%: 7.30 | SGST/UTGST @ 2.5%: 7.30
+Total: 603.30
+GSTIN: 29AABCD1821C2Z6, PAN: AABCD1821C HSN: 9963 | www.dominos.co.in`,
   auto: "Auto meter 180 + 20 tip total 200rs cash koramangala to indiranagar 14/08",
   sms: "Axis Bank: Rs 850.00 spent at BLUE TOKAI COFFEE ROASTERS on 04-AUG-2026. Avail Bal: Rs 42,100. Txn: BTCR889211",
   swiggy: "Swiggy receipt Meghana Biryani food delivery for devs bill total 3240 rs date 14 Aug",

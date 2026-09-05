@@ -18,7 +18,8 @@ BRAND_ALIASES = [
     {"canonical": "amazon", "tokens": ["amazon", "amazon in", "cloudtail", "appario"]},
     {"canonical": "aws", "tokens": ["aws", "amazon web services", "aws emea"]},
     {"canonical": "indigo", "tokens": ["indigo", "interglobe aviation"]},
-    {"canonical": "taj", "tokens": ["taj", "ihcl", "taj lands end", "taj hotel"]}
+    {"canonical": "taj", "tokens": ["taj", "ihcl", "taj lands end", "taj hotel"]},
+    {"canonical": "dominos", "tokens": ["dominos", "domino's", "domino's pizza", "jubilant foodworks"]}
 ]
 
 def normalize_string(s: str) -> str:
