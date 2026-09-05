@@ -226,17 +226,19 @@ export function initClaimFiling(showToast, switchTab) {
     dateInput.value = extracted.date || new Date().toISOString().split("T")[0];
     descInput.value = extracted.description || "";
 
+    const currSym = extracted.currency === "USD" ? "$" : (extracted.currency === "EUR" ? "€" : (extracted.currency === "GBP" ? "£" : "₹"));
+
     // Items list
     itemsList.innerHTML = "";
     if (Array.isArray(extracted.extractedItems) && extracted.extractedItems.length > 0) {
       extracted.extractedItems.forEach(item => {
         const row = document.createElement("div");
         row.className = "item-row";
-        row.innerHTML = `<span>${item.name}</span><strong>₹${Number(item.amount).toLocaleString("en-IN")}</strong>`;
+        row.innerHTML = `<span>${item.name}</span><strong>${currSym}${Number(item.amount).toLocaleString("en-IN")}</strong>`;
         itemsList.appendChild(row);
       });
     } else {
-      itemsList.innerHTML = `<div class="item-row"><span>${extracted.merchant}</span><strong>₹${Number(extracted.amount).toLocaleString("en-IN")}</strong></div>`;
+      itemsList.innerHTML = `<div class="item-row"><span>${extracted.merchant}</span><strong>${currSym}${Number(extracted.amount).toLocaleString("en-IN")}</strong></div>`;
     }
 
     // Confidence badge

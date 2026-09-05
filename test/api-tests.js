@@ -140,6 +140,21 @@ async function runTests() {
       `Payout response: ${JSON.stringify(payRes.body)}`
     );
 
+    // 9. Domino's Pizza Thermal Bill Extraction
+    const dominosRes = await request("POST", "/api/extract-receipt", {
+      rawText: "Domino's Pizza F] TAX INVOICE 2 H ili, H LULUDIL ANT FOODWORKS LTD 7\nCOLES ROAD, COX TOWN BANGALORE-05 State Code: (29) $9060316978\nInvoice Number: 66103/20/44492 Order: 159\n11/01/2020 7:56 PM Internet O\n1 Reg HT PM Capsicum (Gk) 99.00\n1 Reg HT PM Onion (Gi) 99.00\n1 Reg HT PM Gold Corn (Gj) 199.00\n1 Reg HT PM Gold Corn (Gj) 199.00\nTotal 603.3"
+    });
+    const dExtracted = dominosRes.body?.extracted;
+    assert(
+      "Domino's Pizza Thermal Bill Extraction",
+      dominosRes.status === 200 &&
+      dExtracted?.amount === 603.3 &&
+      dExtracted?.currency === "INR" &&
+      dExtracted?.date === "2020-01-11" &&
+      dExtracted?.extractedItems?.length === 4,
+      `Got: amount=${dExtracted?.amount}, currency=${dExtracted?.currency}, date=${dExtracted?.date}, items=${dExtracted?.extractedItems?.length}`
+    );
+
     console.log("\n==================================================");
     console.log(`Results: ${passed} passed, ${failed} failed`);
     console.log("==================================================");

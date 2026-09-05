@@ -108,6 +108,34 @@ def run_tests():
             str(claim)
         )
 
+        # 9. Domino's Pizza Thermal Bill Extraction
+        dominos_payload = {
+            "rawText": (
+                "Domino's Pizza F] TAX INVOICE 2 H ili, H LULUDIL ANT FOODWORKS LTD 7\n"
+                "COLES ROAD, COX TOWN BANGALORE-05 State Code: (29) $9060316978\n"
+                "Invoice Number: 66103/20/44492 Order: 159\n"
+                "11/01/2020 7:56 PM Internet O\n"
+                "1 Reg HT PM Capsicum (Gk) 99.00\n"
+                "1 Reg HT PM Onion (Gi) 99.00\n"
+                "1 Reg HT PM Gold Corn (Gj) 199.00\n"
+                "1 Reg HT PM Gold Corn (Gj) 199.00\n"
+                "Total 603.3"
+            )
+        }
+        r = client.post("/api/extract-receipt", data=dominos_payload)
+        d_extracted = r.json().get("extracted", {})
+        assert_test(
+            "Domino's Pizza Thermal Bill Extraction",
+            (
+                r.status_code == 200
+                and d_extracted.get("amount") == 603.3
+                and d_extracted.get("currency") == "INR"
+                and d_extracted.get("date") == "2020-01-11"
+                and len(d_extracted.get("extractedItems", [])) == 4
+            ),
+            f"Got: amount={d_extracted.get('amount')}, currency={d_extracted.get('currency')}, date={d_extracted.get('date')}, items={len(d_extracted.get('extractedItems', []))}"
+        )
+
         print("\n==================================================")
         print(f"Results: {passed} passed, {failed} failed")
         print("==================================================")
