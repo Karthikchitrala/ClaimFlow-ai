@@ -1,10 +1,73 @@
 // public/js/state.js
 // Centralized state manager & API client for ClaimFlow AI
 
+const FALLBACK_USERS = [
+  {
+    id: "usr_priya_sharma",
+    name: "Priya Sharma",
+    email: "priya.sharma@acmecorp.io",
+    role: "staff",
+    title: "Senior Product Designer",
+    department: "Design & UX",
+    managerId: "usr_vikram_malhotra",
+    monthlyLimit: 25000,
+    currency: "INR",
+    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80"
+  },
+  {
+    id: "usr_rajesh_kumar",
+    name: "Rajesh Kumar",
+    email: "rajesh.kumar@acmecorp.io",
+    role: "staff",
+    title: "Senior Frontend Engineer",
+    department: "Engineering",
+    managerId: "usr_vikram_malhotra",
+    monthlyLimit: 30000,
+    currency: "INR",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
+  },
+  {
+    id: "usr_vikram_malhotra",
+    name: "Vikram Malhotra",
+    email: "vikram.malhotra@acmecorp.io",
+    role: "manager",
+    title: "Engineering Director",
+    department: "Engineering",
+    managerId: "usr_sunita_patel",
+    monthlyLimit: 60000,
+    currency: "INR",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80"
+  },
+  {
+    id: "usr_sunita_patel",
+    name: "Sunita Patel",
+    email: "sunita.patel@acmecorp.io",
+    role: "manager",
+    title: "VP of Product Engineering",
+    department: "Executive Leadership",
+    managerId: null,
+    monthlyLimit: 100000,
+    currency: "INR",
+    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80"
+  },
+  {
+    id: "usr_ananya_iyer",
+    name: "Ananya Iyer",
+    email: "ananya.iyer@acmecorp.io",
+    role: "finance",
+    title: "Head of Global Finance",
+    department: "Finance & Operations",
+    managerId: null,
+    monthlyLimit: 200000,
+    currency: "INR",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+  }
+];
+
 class StateStore {
   constructor() {
-    this.users = [];
-    this.currentUser = null;
+    this.users = [...FALLBACK_USERS];
+    this.currentUser = this.users[0];
     this.claims = [];
     this.categories = [];
     this.analytics = null;

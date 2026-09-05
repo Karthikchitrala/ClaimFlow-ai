@@ -202,5 +202,9 @@ async function startApp() {
   updateRoleBanner();
 }
 
-// Start application when DOM is ready
-document.addEventListener("DOMContentLoaded", startApp);
+// Start application reliably whether DOM is loading or already interactive/complete
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startApp);
+} else {
+  startApp();
+}
