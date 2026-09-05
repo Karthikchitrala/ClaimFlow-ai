@@ -202,8 +202,8 @@ export function initClaimsList() {
   }
 
   // Subscribe to state changes
-  state.subscribe((type) => {
-    if (type === "CLAIMS_UPDATED" || type === "USER_CHANGED" || type === "INITIALIZED") {
+  state.subscribe((type, payload) => {
+    if (type === "CLAIMS_UPDATED" || type === "USER_CHANGED" || type === "INITIALIZED" || (type === "TAB_SWITCHED" && payload === "my-claims")) {
       renderTable();
     }
   });

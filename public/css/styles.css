@@ -1466,3 +1466,49 @@ body {
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 .max-w-xl { max-width: 650px; }
+
+/* Role Guidance Banners in Approvals */
+.role-guidance-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.guidance-employee {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.guidance-manager {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.guidance-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.guidance-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.guidance-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 3px;
+}
+
+.guidance-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

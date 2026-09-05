@@ -48,6 +48,8 @@ export function switchTab(tabId) {
       p.classList.remove("active");
     }
   });
+
+  state.notify("TAB_SWITCHED", tabId);
 }
 
 async function startApp() {
@@ -75,6 +77,12 @@ async function startApp() {
     userSelect.addEventListener("change", (e) => {
       state.setCurrentUser(e.target.value);
       showToast(`Switched active persona to ${state.currentUser.name} (${state.currentUser.role.toUpperCase()})`, "success");
+    });
+
+    state.subscribe((type) => {
+      if (type === "USER_CHANGED" && state.currentUser) {
+        userSelect.value = state.currentUser.id;
+      }
     });
   }
 

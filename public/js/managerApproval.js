@@ -12,6 +12,47 @@ export function initManagerApproval(showToast) {
   function renderApprovals() {
     if (!tbody || !state.currentUser) return;
 
+    // Guidance banner for approving persona
+    const guidanceBox = document.getElementById("approvals-role-guidance");
+    if (guidanceBox) {
+      const isManager = state.currentUser.role === "manager";
+      if (!isManager) {
+        guidanceBox.innerHTML = `
+          <div class="role-guidance-banner guidance-employee">
+            <div class="guidance-content">
+              <span class="guidance-icon">👨‍💼</span>
+              <div>
+                <div class="guidance-title">Viewing as Employee: <strong>${state.currentUser.name}</strong> (${state.currentUser.title})</div>
+                <div class="guidance-desc">Under corporate governance, staff cannot self-approve expense claims. To approve or reject your team claims, switch persona to <strong>Vikram Malhotra (Manager)</strong>.</div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm btn-switch-to-manager" style="white-space: nowrap;">
+              Switch to Vikram Malhotra (Manager) →
+            </button>
+          </div>
+        `;
+        const btnSwitch = guidanceBox.querySelector(".btn-switch-to-manager");
+        if (btnSwitch) {
+          btnSwitch.onclick = () => {
+            state.setCurrentUser("usr_vikram_malhotra");
+            showToast("Switched to Vikram Malhotra (Manager) — Approvals unlocked!", "success");
+          };
+        }
+      } else {
+        guidanceBox.innerHTML = `
+          <div class="role-guidance-banner guidance-manager">
+            <div class="guidance-content">
+              <span class="guidance-icon">✓</span>
+              <div>
+                <div class="guidance-title">Manager Authority Active: <strong>${state.currentUser.name}</strong> (${state.currentUser.title})</div>
+                <div class="guidance-desc">You are authorized to review, approve, or reject expense claims submitted by your team (Priya Sharma, Rajesh Kumar).</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
     // Claims pending approval or recently approved/paid
     const pendingClaims = state.claims.filter(c => c.status === "submitted");
 
@@ -166,8 +207,8 @@ export function initManagerApproval(showToast) {
     });
   }
 
-  state.subscribe((type) => {
-    if (type === "CLAIMS_UPDATED" || type === "USER_CHANGED" || type === "INITIALIZED") {
+  state.subscribe((type, payload) => {
+    if (type === "CLAIMS_UPDATED" || type === "USER_CHANGED" || type === "INITIALIZED" || (type === "TAB_SWITCHED" && payload === "team-approvals")) {
       renderApprovals();
     }
   });

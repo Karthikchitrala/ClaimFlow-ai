@@ -136,22 +136,55 @@ class StateStore {
     }
   }
 
+  getLocalClaims() {
+    try {
+      const saved = localStorage.getItem("claimflow_custom_claims");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveClaimsToLocal() {
+    try {
+      localStorage.setItem("claimflow_custom_claims", JSON.stringify(this.claims));
+    } catch (e) {
+      console.warn("Failed to persist claims locally", e);
+    }
+  }
+
   async loadClaims() {
     try {
-      const res = await fetch("/api/claims");
+      const res = await fetch("/api/claims", { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
-        this.claims = data.claims;
+        const localClaims = this.getLocalClaims();
+        const map = new Map();
+        // Server claims take precedence for updated status
+        (data.claims || []).forEach(c => map.set(c.id, c));
+        // Ensure local custom claims are preserved across serverless cold starts
+        localClaims.forEach(c => {
+          if (!map.has(c.id)) {
+            map.set(c.id, c);
+          }
+        });
+        this.claims = Array.from(map.values());
+        this.saveClaimsToLocal();
         this.notify("CLAIMS_UPDATED", this.claims);
       }
     } catch (err) {
       console.error("Failed to load claims:", err);
+      const localClaims = this.getLocalClaims();
+      if (localClaims.length > 0) {
+        this.claims = localClaims;
+        this.notify("CLAIMS_UPDATED", this.claims);
+      }
     }
   }
 
   async loadAnalytics() {
     try {
-      const res = await fetch("/api/analytics/finance");
+      const res = await fetch("/api/analytics/finance", { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
         this.analytics = data;
@@ -194,8 +227,12 @@ class StateStore {
       })
     });
     const result = await res.json();
-    if (result.success) {
-      await Promise.all([this.loadClaims(), this.loadAnalytics()]);
+    if (result.success && result.claim) {
+      // Instantly insert into local claims so it immediately appears in My Claims & Approvals
+      this.claims = [result.claim, ...this.claims.filter(c => c.id !== result.claim.id)];
+      this.saveClaimsToLocal();
+      this.notify("CLAIMS_UPDATED", this.claims);
+      await this.loadAnalytics();
     }
     return result;
   }
@@ -208,7 +245,22 @@ class StateStore {
     });
     const result = await res.json();
     if (result.success) {
-      await Promise.all([this.loadClaims(), this.loadAnalytics()]);
+      const claim = this.claims.find(c => c.id === claimId);
+      if (claim) {
+        claim.status = "approved";
+        claim.approvedAt = new Date().toISOString();
+        claim.approverId = this.currentUser.id;
+        claim.approverName = this.currentUser.name;
+        if (!claim.timeline) claim.timeline = [];
+        claim.timeline.push({
+          action: `Claim approved & signed off by ${this.currentUser.name} (${this.currentUser.role.toUpperCase()})`,
+          by: this.currentUser.name,
+          at: new Date().toISOString()
+        });
+      }
+      this.saveClaimsToLocal();
+      this.notify("CLAIMS_UPDATED", this.claims);
+      await this.loadAnalytics();
     }
     return result;
   }
@@ -221,7 +273,20 @@ class StateStore {
     });
     const result = await res.json();
     if (result.success) {
-      await Promise.all([this.loadClaims(), this.loadAnalytics()]);
+      const claim = this.claims.find(c => c.id === claimId);
+      if (claim) {
+        claim.status = "rejected";
+        claim.rejectionReason = reason;
+        if (!claim.timeline) claim.timeline = [];
+        claim.timeline.push({
+          action: `Claim rejected: ${reason}`,
+          by: this.currentUser.name,
+          at: new Date().toISOString()
+        });
+      }
+      this.saveClaimsToLocal();
+      this.notify("CLAIMS_UPDATED", this.claims);
+      await this.loadAnalytics();
     }
     return result;
   }
@@ -233,7 +298,21 @@ class StateStore {
     });
     const result = await res.json();
     if (result.success) {
-      await Promise.all([this.loadClaims(), this.loadAnalytics()]);
+      const claim = this.claims.find(c => c.id === claimId);
+      if (claim) {
+        claim.status = "paid";
+        claim.paidAt = new Date().toISOString();
+        claim.payoutRef = result.claim?.payoutRef || `TXN-IMPS-${Date.now()}`;
+        if (!claim.timeline) claim.timeline = [];
+        claim.timeline.push({
+          action: `Payout Completed (Ref: ${claim.payoutRef}). Finalized & locked.`,
+          by: "Finance Treasury",
+          at: new Date().toISOString()
+        });
+      }
+      this.saveClaimsToLocal();
+      this.notify("CLAIMS_UPDATED", this.claims);
+      await this.loadAnalytics();
     }
     return result;
   }
@@ -245,12 +324,25 @@ class StateStore {
     });
     const result = await res.json();
     if (result.success) {
-      await Promise.all([this.loadClaims(), this.loadAnalytics()]);
+      const now = new Date().toISOString();
+      this.claims.forEach(c => {
+        if (c.status === "approved") {
+          c.status = "paid";
+          c.paidAt = now;
+          c.payoutRef = `TXN-IMPS-${Date.now()}`;
+        }
+      });
+      this.saveClaimsToLocal();
+      this.notify("CLAIMS_UPDATED", this.claims);
+      await this.loadAnalytics();
     }
     return result;
   }
 
   async resetData() {
+    try {
+      localStorage.removeItem("claimflow_custom_claims");
+    } catch (e) {}
     const res = await fetch("/api/reset-data", { method: "POST" });
     const result = await res.json();
     if (result.success) {

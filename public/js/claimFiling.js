@@ -334,7 +334,7 @@ export function initClaimFiling(showToast, switchTab) {
         showToast(
           res.duplicateWarning
             ? "⚠️ Claim submitted! Note: AI flagged potential duplicate for reviewer."
-            : "Claim submitted to manager successfully!",
+            : `✓ Claim filed for ₹${amount.toLocaleString("en-IN")}! Switch persona to Vikram Malhotra (Manager) above to approve it.`,
           res.duplicateWarning ? "warning" : "success"
         );
 

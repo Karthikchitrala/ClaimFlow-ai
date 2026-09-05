@@ -39,10 +39,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory store initialized with deep copy of seed data
+import json
+import tempfile
+
+CLAIMS_CACHE_FILE = os.path.join(tempfile.gettempdir(), "claimflow_claims.json")
+
+def load_cached_claims():
+    if os.path.exists(CLAIMS_CACHE_FILE):
+        try:
+            with open(CLAIMS_CACHE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list) and len(data) > 0 and any(isinstance(c, dict) and c.get("id", "").startswith("CLM-") for c in data):
+                    cached_ids = {c.get("id") for c in data if isinstance(c, dict)}
+                    missing_seeds = [copy.deepcopy(c) for c in INITIAL_CLAIMS if c["id"] not in cached_ids]
+                    return data + missing_seeds
+        except Exception as e:
+            print(f"Error reading claims cache: {e}")
+    return copy.deepcopy(INITIAL_CLAIMS)
+
+def persist_claims():
+    try:
+        with open(CLAIMS_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(claims, f, default=str)
+    except Exception as e:
+        print(f"Error persisting claims: {e}")
+
+# In-memory store initialized with deep copy of seed data / persistent cache
 users = copy.deepcopy(INITIAL_USERS)
 categories = copy.deepcopy(EXPENSE_CATEGORIES)
-claims = copy.deepcopy(INITIAL_CLAIMS)
+claims = load_cached_claims()
 
 system_settings = {
     "geminiApiKey": os.environ.get("GEMINI_API_KEY", ""),
@@ -110,7 +135,10 @@ def get_claims(
 
     # Sort descending by date
     filtered.sort(key=lambda x: x.get("submittedAt") or x.get("date") or "", reverse=True)
-    return {"success": True, "claims": filtered, "total": len(filtered)}
+    return JSONResponse(
+        content={"success": True, "claims": filtered, "total": len(filtered)},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
+    )
 
 @app.get("/api/claims/{claim_id}")
 def get_claim(claim_id: str):
@@ -199,6 +227,7 @@ def create_claim(payload: ClaimCreate):
         })
 
     claims.insert(0, new_claim)
+    persist_claims()
 
     return {
         "success": True,
@@ -239,6 +268,7 @@ def update_claim(claim_id: str, payload: ClaimUpdate):
     })
 
     claim["duplicateFlag"] = check_duplicate_claim(claim, claims, claim["id"])
+    persist_claims()
     return {"success": True, "claim": claim}
 
 # ==============================================================================
@@ -275,6 +305,7 @@ def approve_claim(claim_id: str, payload: ApprovalRequest):
         "at": now
     })
 
+    persist_claims()
     return {"success": True, "claim": claim, "message": "Claim approved successfully"}
 
 @app.post("/api/claims/{claim_id}/reject")
@@ -299,6 +330,7 @@ def reject_claim(claim_id: str, payload: RejectionRequest):
         "at": datetime.now().isoformat()
     })
 
+    persist_claims()
     return {"success": True, "claim": claim, "message": "Claim rejected"}
 
 # ==============================================================================
@@ -327,6 +359,7 @@ def pay_claim(claim_id: str):
         "at": now
     })
 
+    persist_claims()
     return {
         "success": True,
         "claim": claim,
@@ -357,6 +390,7 @@ def batch_pay_claims():
             "at": now
         })
 
+    persist_claims()
     return {
         "success": True,
         "batchId": batch_id,
@@ -504,6 +538,7 @@ def reset_data():
     users = copy.deepcopy(INITIAL_USERS)
     categories = copy.deepcopy(EXPENSE_CATEGORIES)
     claims = copy.deepcopy(INITIAL_CLAIMS)
+    persist_claims()
     return {"success": True, "message": "Reset database back to realistic showcase seed data."}
 
 # ==============================================================================
