@@ -409,7 +409,7 @@ router.post("/extract-receipt", upload.single("receiptImage"), async (req, res) 
       rawText,
       imageBase64,
       mimeType,
-      apiKey: systemSettings.geminiApiKey
+      apiKey: req.body.apiKey || systemSettings.geminiApiKey
     });
 
     // Check duplicate immediately for pre-submission warning!

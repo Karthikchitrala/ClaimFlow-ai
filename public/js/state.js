@@ -162,10 +162,11 @@ class StateStore {
     }
   }
 
-  async extractReceipt(rawText, file = null) {
+  async extractReceipt(rawText, file = null, apiKey = "") {
     const formData = new FormData();
     if (rawText) formData.append("rawText", rawText);
     if (file) formData.append("receiptImage", file);
+    if (apiKey) formData.append("apiKey", apiKey);
 
     const res = await fetch("/api/extract-receipt", {
       method: "POST",

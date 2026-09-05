@@ -372,7 +372,8 @@ def batch_pay_claims():
 @app.post("/api/extract-receipt")
 async def extract_receipt(
     rawText: Optional[str] = Form(None),
-    receiptImage: Optional[UploadFile] = File(None)
+    receiptImage: Optional[UploadFile] = File(None),
+    apiKey: Optional[str] = Form(None)
 ):
     try:
         image_bytes = None
@@ -382,11 +383,13 @@ async def extract_receipt(
             image_bytes = await receiptImage.read()
             mime_type = receiptImage.content_type
 
+        effective_key = apiKey or system_settings.get("geminiApiKey") or os.environ.get("GEMINI_API_KEY")
+
         extracted = await extract_receipt_data(
             raw_text=rawText or "",
             image_bytes=image_bytes,
             mime_type=mime_type,
-            api_key=system_settings.get("geminiApiKey")
+            api_key=effective_key
         )
 
         dup_check = check_duplicate_claim(extracted, claims)

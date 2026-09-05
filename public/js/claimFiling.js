@@ -121,7 +121,7 @@ export function initClaimFiling(showToast, switchTab) {
     }
   });
 
-  function handleFileSelection(file) {
+    function handleFileSelection(file) {
     activeSelectedFile = file;
     fileNameLabel.textContent = file.name;
     const reader = new FileReader();
@@ -131,6 +131,37 @@ export function initClaimFiling(showToast, switchTab) {
       document.querySelector(".dropzone-content").classList.add("hidden");
     };
     reader.readAsDataURL(file);
+
+    // Auto-trigger OCR scanning in background when image is chosen!
+    scanReceiptImageWithOcr(file);
+  }
+
+  async function scanReceiptImageWithOcr(file) {
+    if (!window.Tesseract) return "";
+    showToast("🔍 Reading text from receipt photo via OCR...", "info");
+    btnExtractText.textContent = "Scanning Photo (OCR)...";
+
+    try {
+      const res = await window.Tesseract.recognize(file, "eng", {
+        logger: m => {
+          if (m.status === "recognizing text") {
+            const pct = Math.round((m.progress || 0) * 100);
+            btnExtractText.textContent = `OCR Scanning (${pct}%)...`;
+          }
+        }
+      });
+      const ocrText = res?.data?.text || "";
+      if (ocrText.trim()) {
+        textarea.value = ocrText.trim();
+        showToast("✓ Text extracted from bill photo!", "success");
+      }
+      btnExtractText.textContent = "Extract Claim with AI";
+      return ocrText;
+    } catch (e) {
+      console.warn("Client OCR error:", e);
+      btnExtractText.textContent = "Extract Claim with AI";
+      return "";
+    }
   }
 
   btnRemoveFile.addEventListener("click", (e) => {
@@ -147,7 +178,7 @@ export function initClaimFiling(showToast, switchTab) {
   });
 
   async function triggerExtraction() {
-    const text = textarea.value.trim();
+    let text = textarea.value.trim();
     if (!text && !activeSelectedFile) {
       showToast("Please enter receipt text or choose an image", "warning");
       return;
@@ -155,15 +186,25 @@ export function initClaimFiling(showToast, switchTab) {
 
     btnExtract.disabled = true;
     spinner.classList.remove("hidden");
-    btnExtractText.textContent = "AI Parsing Receipt...";
 
     try {
-      const result = await state.extractReceipt(text, activeSelectedFile);
+      // If image is selected and text is empty, scan image first!
+      if (activeSelectedFile && !text) {
+        btnExtractText.textContent = "OCR Reading Receipt Photo...";
+        const ocrText = await scanReceiptImageWithOcr(activeSelectedFile);
+        if (ocrText && ocrText.trim()) {
+          text = ocrText.trim();
+        }
+      }
+
+      btnExtractText.textContent = "AI Parsing Receipt...";
+      const customApiKey = localStorage.getItem("claimflow_gemini_key") || "";
+      const result = await state.extractReceipt(text, activeSelectedFile, customApiKey);
 
       if (result.success && result.extracted) {
         currentCandidateExtracted = result.extracted;
         populateReviewCard(result.extracted, result.duplicateWarning);
-        showToast("Receipt extracted successfully!", "success");
+        showToast(`Parsed receipt: ${result.extracted.merchant || 'Vendor'} (₹${result.extracted.amount || 0})`, "success");
       } else {
         showToast("Extraction failed. Please check input.", "error");
       }

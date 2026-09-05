@@ -169,10 +169,20 @@ async function startApp() {
   }
 
   if (settingsForm) {
+    const keyInput = document.getElementById("settings-gemini-key");
+    const savedKey = localStorage.getItem("claimflow_gemini_key");
+    if (savedKey && keyInput) {
+      keyInput.value = savedKey;
+    }
+
     settingsForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const geminiApiKey = document.getElementById("settings-gemini-key").value;
+      const geminiApiKey = keyInput ? keyInput.value.trim() : "";
       const sensitivity = parseInt(slider.value, 10) / 100;
+
+      if (geminiApiKey) {
+        localStorage.setItem("claimflow_gemini_key", geminiApiKey);
+      }
 
       const res = await fetch("/api/settings", {
         method: "POST",
@@ -181,7 +191,7 @@ async function startApp() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast("Settings updated successfully!", "success");
+        showToast("Settings & Gemini API key saved!", "success");
       }
     });
   }
