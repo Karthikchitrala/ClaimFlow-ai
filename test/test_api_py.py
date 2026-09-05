@@ -10,7 +10,12 @@ import requests
 if sys.platform == "win32":
     os.environ["PYTHONIOENCODING"] = "utf-8"
 
-BASE_URL = "http://localhost:3000"
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from fastapi.testclient import TestClient
+from server_py.main import app
+
+client = TestClient(app)
 
 def run_tests():
     print("==================================================")
@@ -31,11 +36,11 @@ def run_tests():
 
     try:
         # 1. Health check
-        r = requests.get(f"{BASE_URL}/api/health", timeout=5)
+        r = client.get("/api/health")
         assert_test("Health Check", r.status_code == 200 and r.json().get("status") == "healthy")
 
         # 2. Realistic Users Seeded
-        r = requests.get(f"{BASE_URL}/api/users", timeout=5)
+        r = client.get("/api/users")
         users = r.json().get("users", [])
         assert_test("Realistic Users Seeded", r.status_code == 200 and len(users) >= 5)
 
@@ -43,7 +48,7 @@ def run_tests():
         extract_payload = {
             "rawText": "Auto meter 180 + 20 tip total 200rs cash koramangala to indiranagar 14/08"
         }
-        r = requests.post(f"{BASE_URL}/api/extract-receipt", data=extract_payload, timeout=5)
+        r = client.post("/api/extract-receipt", data=extract_payload)
         extracted = r.json().get("extracted", {})
         assert_test(
             "AI Extraction - Messy Auto Ride",
@@ -58,7 +63,7 @@ def run_tests():
             "date": "2026-08-14",
             "rawReceiptText": "Swiggy receipt Meghana Biryani food delivery 3240 rs"
         }
-        r = requests.post(f"{BASE_URL}/api/check-duplicate", json=dup_payload, timeout=5)
+        r = client.post("/api/check-duplicate", json=dup_payload)
         dup = r.json().get("duplicate")
         assert_test(
             "Fuzzy Duplicate Detection",
@@ -68,7 +73,7 @@ def run_tests():
 
         # 5. Anti-Self-Approval Rule: Manager cannot approve own claim
         self_approve_payload = {"approverId": "usr_vikram_malhotra"}
-        r = requests.post(f"{BASE_URL}/api/claims/CLM-2026-0819-AWS/approve", json=self_approve_payload, timeout=5)
+        r = client.post("/api/claims/CLM-2026-0819-AWS/approve", json=self_approve_payload)
         assert_test(
             "Anti-Self-Approval Rule (Manager Blocked with 403)",
             r.status_code == 403,
@@ -77,7 +82,7 @@ def run_tests():
 
         # 6. Immutable Paid Claim Rule: Paid claim cannot be altered
         edit_paid_payload = {"amount": 1500, "description": "Modifying paid claim"}
-        r = requests.put(f"{BASE_URL}/api/claims/CLM-2026-0804", json=edit_paid_payload, timeout=5)
+        r = client.put("/api/claims/CLM-2026-0804", json=edit_paid_payload)
         assert_test(
             "Immutable Paid Claim Rule (Blocked with 400)",
             r.status_code == 400,
@@ -85,7 +90,7 @@ def run_tests():
         )
 
         # 7. Finance Analytics & Monthly Limit Tracking
-        r = requests.get(f"{BASE_URL}/api/analytics/finance", timeout=5)
+        r = client.get("/api/analytics/finance")
         report = r.json().get("employeeLimitReport", [])
         priya = next((e for e in report if e["user"]["id"] == "usr_priya_sharma"), None)
         assert_test(
@@ -95,7 +100,7 @@ def run_tests():
         )
 
         # 8. Finance Single Payout Emulation
-        r = requests.post(f"{BASE_URL}/api/claims/CLM-2026-0820/pay", timeout=5)
+        r = client.post("/api/claims/CLM-2026-0820/pay")
         claim = r.json().get("claim", {})
         assert_test(
             "Finance Single Payout Emulation",
