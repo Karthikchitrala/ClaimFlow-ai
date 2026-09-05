@@ -1,0 +1,27 @@
+{
+  "name": "claimflow-ai",
+  "version": "1.0.0",
+  "description": "Intelligent Expense Claims Management Platform with AI Receipt Parsing, Fuzzy Duplicate Detection, and Role-Based Approval & Finance Workflows",
+  "type": "module",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "test": "node test/api-tests.js"
+  },
+  "keywords": [
+    "expense-claims",
+    "ai-receipt-parsing",
+    "duplicate-detection",
+    "gemini-api",
+    "finance-automation"
+  ],
+  "author": "ClaimFlow AI Team",
+  "license": "MIT",
+  "dependencies": {
+    "@google/genai": "^2.21.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

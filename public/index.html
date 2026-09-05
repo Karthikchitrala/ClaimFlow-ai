@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClaimFlow AI | Intelligent Expense Claims & Finance Platform</title>
+  <meta name="description" content="Effortless expense filing with AI receipt extraction, fuzzy duplicate detection, manager approval rules, and month-end finance spend analytics.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="theme-dark">
+  <div id="app-container">
+    
+    <!-- Top Navigation Bar -->
+    <header class="navbar" id="main-header">
+      <div class="navbar-left">
+        <div class="brand-logo" id="brand-logo">
+          <div class="logo-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <path d="m9 15 2 2 4-4"></path>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">ClaimFlow<span class="brand-ai">AI</span></span>
+            <span class="brand-badge">Enterprise Expense</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick KPI Stats Bar -->
+      <div class="navbar-center" id="quick-kpis">
+        <div class="kpi-mini" id="kpi-unpaid-claims">
+          <span class="kpi-label">Unpaid Claims</span>
+          <span class="kpi-value text-amber" id="mini-unpaid-count">2</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi-mini" id="kpi-pending-approval">
+          <span class="kpi-label">Pending Review</span>
+          <span class="kpi-value text-indigo" id="mini-pending-count">3</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi-mini" id="kpi-flagged-duplicates">
+          <span class="kpi-label">Duplicate Alerts</span>
+          <span class="kpi-value text-rose" id="mini-duplicate-count">1</span>
+        </div>
+      </div>
+
+      <!-- Role / User Switcher -->
+      <div class="navbar-right">
+        <div class="role-selector-wrapper">
+          <span class="role-selector-label">Viewing as:</span>
+          <div class="custom-select-container">
+            <select id="active-user-select" class="user-select-input" aria-label="Select active persona">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+        <button id="btn-reset-data" class="btn btn-outline-subtle btn-sm" title="Reset all data back to realistic seed state">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+          <span>Reset Demo</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Role Banner Notice -->
+    <div class="role-banner" id="role-banner">
+      <div class="role-avatar-circle" id="banner-avatar"></div>
+      <div class="role-info">
+        <div class="role-title-row">
+          <strong id="banner-user-name">Priya Sharma</strong>
+          <span class="badge" id="banner-role-badge">Staff Member</span>
+          <span class="text-muted" id="banner-user-dept">Design & UX</span>
+        </div>
+        <p class="role-description" id="banner-role-desc">
+          Files claims effortlessly with AI text/receipt paste, monitors what is still unpaid, and tracks monthly budget.
+        </p>
+      </div>
+      <div class="role-budget-preview" id="banner-budget-box">
+        <div class="budget-meta">
+          <span>August Limit: <strong id="banner-limit-spent">₹23,800</strong> / <span id="banner-limit-max">₹25,000</span></span>
+          <span class="badge badge-warning" id="banner-limit-tag">95.2% Used</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill fill-warning" id="banner-limit-bar" style="width: 95.2%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs-bar" aria-label="Main tabs">
+      <button class="nav-tab active" data-tab="file-claim" id="tab-file-claim">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        <span>File New Claim</span>
+      </button>
+      <button class="nav-tab" data-tab="my-claims" id="tab-my-claims">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>My Claims</span>
+        <span class="tab-counter" id="my-claims-badge">0</span>
+      </button>
+      <button class="nav-tab" data-tab="team-approvals" id="tab-team-approvals">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Team Approvals</span>
+        <span class="tab-counter counter-accent" id="approvals-badge">0</span>
+      </button>
+      <button class="nav-tab" data-tab="finance-dashboard" id="tab-finance-dashboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>Finance & Spend Analytics</span>
+      </button>
+      <button class="nav-tab" data-tab="duplicate-sandbox" id="tab-duplicate-sandbox">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Duplicate Intelligence</span>
+      </button>
+      <button class="nav-tab" data-tab="settings-tab" id="tab-settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Config</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="content-container">
+
+      <!-- ========================================== -->
+      <!-- TAB 1: FILE NEW CLAIM (AI Smart Input)     -->
+      <!-- ========================================== -->
+      <section class="tab-pane active" id="pane-file-claim">
+        <div class="pane-grid-2col">
+          
+          <!-- Left: Smart Receipt Input Panel -->
+          <div class="card glass-card input-hero-card">
+            <div class="card-header">
+              <div class="card-header-icon bg-indigo-subtle">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              </div>
+              <div>
+                <h2 class="card-title">Frictionless AI Receipt Input</h2>
+                <p class="card-subtitle">Nobody wants to fill six fields for a 200 rupee auto ride. Paste raw text or drop an image.</p>
+              </div>
+            </div>
+
+            <!-- Quick Template Chips -->
+            <div class="template-chips-section">
+              <span class="chips-label">Try realistic real-world receipts:</span>
+              <div class="chips-list">
+                <button type="button" class="chip-btn" data-template="auto">
+                  🛺 Messy Auto Ride (₹200)
+                </button>
+                <button type="button" class="chip-btn" data-template="sms">
+                  ☕ Blue Tokai SMS (₹850)
+                </button>
+                <button type="button" class="chip-btn" data-template="swiggy">
+                  🍛 Swiggy Duplicate Test (₹3,240)
+                </button>
+                <button type="button" class="chip-btn" data-template="aws">
+                  ☁️ AWS Cloud Invoice (₹11,850)
+                </button>
+              </div>
+            </div>
+
+            <!-- Input Tabs: Text Paste vs Photo Upload -->
+            <div class="input-method-toggle">
+              <button class="toggle-btn active" id="toggle-method-text" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                Paste Receipt Text / SMS / Notes
+              </button>
+              <button class="toggle-btn" id="toggle-method-image" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Upload Photo / Screenshot
+              </button>
+            </div>
+
+            <!-- Text Area Input -->
+            <div class="input-pane" id="text-input-area">
+              <div class="form-group">
+                <label for="receipt-raw-textarea" class="form-label">Receipt Text, Email, SMS, or WhatsApp Message</label>
+                <textarea id="receipt-raw-textarea" class="form-textarea" rows="6" placeholder="Paste whatever is written on the receipt, e.g.:&#10;Auto meter 180 + 20 tip total 200rs cash koramangala to indiranagar 14/08&#10;Or bank SMS notification / restaurant bill..."></textarea>
+              </div>
+            </div>
+
+            <!-- Image Upload Dropzone -->
+            <div class="input-pane hidden" id="image-input-area">
+              <div class="file-dropzone" id="file-dropzone">
+                <input type="file" id="receipt-file-input" accept="image/*" class="file-hidden-input">
+                <div class="dropzone-content">
+                  <div class="dropzone-icon">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </div>
+                  <h4>Drag & Drop Receipt Photo or Screenshot</h4>
+                  <p class="text-muted">Supports JPG, PNG, WebP up to 10MB</p>
+                  <span class="btn btn-outline btn-sm">Browse Files</span>
+                </div>
+                <div class="file-preview-card hidden" id="file-preview-card">
+                  <img id="file-preview-img" src="" alt="Receipt preview">
+                  <div class="file-preview-meta">
+                    <span id="file-name-label">receipt.jpg</span>
+                    <button type="button" class="btn-remove-file" id="btn-remove-file">✕</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="input-actions">
+              <button type="button" class="btn btn-primary btn-lg w-full" id="btn-extract-receipt">
+                <span class="btn-icon">⚡</span>
+                <span id="extract-btn-text">Extract Claim with AI</span>
+                <span class="loading-spinner hidden" id="extract-spinner"></span>
+              </button>
+            </div>
+            
+            <div class="ai-guarantee-note">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Instant AI extraction + automatic duplicate screening + policy limit check</span>
+            </div>
+          </div>
+
+          <!-- Right: Human-in-the-Loop Review & Submission Card -->
+          <div class="card glass-card review-card" id="review-card">
+            <div class="card-header border-bottom">
+              <div>
+                <div class="title-with-pill">
+                  <h2 class="card-title">Pre-Submission Verification</h2>
+                  <span class="badge badge-indigo" id="review-status-pill">Ready for Review</span>
+                </div>
+                <p class="card-subtitle">AI extracted these fields. Review and tweak before sending to your manager.</p>
+              </div>
+              <div class="confidence-indicator" id="confidence-badge" title="AI Extraction Confidence">
+                <span class="confidence-dot"></span>
+                <span id="confidence-text">95% Confidence</span>
+              </div>
+            </div>
+
+            <!-- Live Duplicate Alert Banner (Dynamic) -->
+            <div class="duplicate-alert-box hidden" id="duplicate-warning-banner">
+              <div class="alert-icon">⚠️</div>
+              <div class="alert-body">
+                <strong>Duplicate Warning Detected!</strong>
+                <p id="duplicate-warning-msg">This receipt looks identical or highly similar to an existing claim.</p>
+                <button type="button" class="btn-link" id="btn-view-duplicate-details">Compare side-by-side →</button>
+              </div>
+            </div>
+
+            <!-- Live Monthly Limit Impact Banner -->
+            <div class="limit-impact-banner" id="limit-impact-banner">
+              <div class="limit-impact-header">
+                <span>Monthly Limit Impact:</span>
+                <strong id="limit-impact-calc">₹23,800 + ₹200 = ₹24,000 / ₹25,000 (96.0%)</strong>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill fill-warning" id="limit-impact-bar" style="width: 96%;"></div>
+              </div>
+            </div>
+
+            <!-- Editable Fields Form -->
+            <form id="claim-submission-form" class="review-form">
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="claim-merchant" class="form-label">Merchant / Vendor *</label>
+                  <input type="text" id="claim-merchant" class="form-input" placeholder="e.g. Auto Rickshaw Koramangala" required>
+                </div>
+                <div class="form-group">
+                  <label for="claim-category" class="form-label">Category *</label>
+                  <select id="claim-category" class="form-input" required>
+                    <option value="travel_taxi">🚕 Travel & Taxis</option>
+                    <option value="meals_dining">☕ Meals & Dining</option>
+                    <option value="software_cloud">☁️ Software & Cloud</option>
+                    <option value="supplies_office">📦 Supplies & Equipment</option>
+                    <option value="hotel_lodging">🏨 Accommodation & Lodging</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-3">
+                <div class="form-group">
+                  <label for="claim-amount" class="form-label">Amount *</label>
+                  <div class="input-with-prefix">
+                    <span class="input-prefix" id="currency-prefix">₹</span>
+                    <input type="number" id="claim-amount" class="form-input" step="0.01" min="1" placeholder="200" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="claim-currency" class="form-label">Currency</label>
+                  <select id="claim-currency" class="form-input">
+                    <option value="INR">INR (₹)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="claim-date" class="form-label">Date *</label>
+                  <input type="date" id="claim-date" class="form-input" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="claim-description" class="form-label">Business Purpose / Notes</label>
+                <textarea id="claim-description" class="form-textarea" rows="2" placeholder="e.g. Travel to Indiranagar client sprint meeting"></textarea>
+              </div>
+
+              <!-- Itemized line items if available -->
+              <div class="extracted-items-box" id="extracted-items-container">
+                <span class="sub-label">Itemized Breakdown:</span>
+                <div class="items-list" id="items-breakdown-list">
+                  <div class="item-row">
+                    <span>Meter Fare</span>
+                    <strong>₹180</strong>
+                  </div>
+                  <div class="item-row">
+                    <span>Driver Tip</span>
+                    <strong>₹20</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Anti-Self Approval Notice for Managers -->
+              <div class="manager-routing-notice hidden" id="manager-routing-notice">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span><strong>Self-Approval Prohibited:</strong> As a manager, this claim will automatically route to <strong>Sunita Patel (VP)</strong> for sign-off.</span>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-success btn-lg w-full" id="btn-submit-claim">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>
+                  <span>Submit Claim to Manager</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: MY CLAIMS (Staff Member Tracker)    -->
+      <!-- ========================================== -->
+      <section class="tab-pane" id="pane-my-claims">
+        <div class="card glass-card">
+          <div class="card-header flex-between">
+            <div>
+              <h2 class="card-title">My Expense Claims</h2>
+              <p class="card-subtitle">Track your submissions, see manager approvals, and monitor payout status.</p>
+            </div>
+            <!-- Filter Pills -->
+            <div class="filter-pills" id="claims-filter-pills">
+              <button class="filter-pill active" data-filter="all">All (<span id="count-all">0</span>)</button>
+              <button class="filter-pill" data-filter="submitted">Pending (<span id="count-submitted">0</span>)</button>
+              <button class="filter-pill" data-filter="approved">Approved (<span id="count-approved">0</span>)</button>
+              <button class="filter-pill" data-filter="paid">Paid (<span id="count-paid">0</span>)</button>
+              <button class="filter-pill" data-filter="rejected">Rejected (<span id="count-rejected">0</span>)</button>
+            </div>
+          </div>
+
+          <!-- Claims Table / List -->
+          <div class="table-responsive">
+            <table class="data-table" id="my-claims-table">
+              <thead>
+                <tr>
+                  <th>Claim ID</th>
+                  <th>Date</th>
+                  <th>Merchant & Purpose</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Approver</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="my-claims-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: TEAM APPROVALS (Manager View)       -->
+      <!-- ========================================== -->
+      <section class="tab-pane" id="pane-team-approvals">
+        <div class="card glass-card">
+          <div class="card-header flex-between">
+            <div>
+              <div class="title-with-pill">
+                <h2 class="card-title">Team Expense Approvals</h2>
+                <span class="badge badge-accent" id="approvals-count-badge">3 Pending</span>
+              </div>
+              <p class="card-subtitle">Review receipts filed by your team. Enforces strict anti-self-approval and duplicate rules.</p>
+            </div>
+            <div class="rule-reminder-box">
+              <span class="rule-icon">🔒</span>
+              <span class="rule-text"><strong>Security Rule:</strong> Managers cannot sign off their own claims.</span>
+            </div>
+          </div>
+
+          <!-- Team Claims Table -->
+          <div class="table-responsive">
+            <table class="data-table" id="team-approvals-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Merchant & Description</th>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Duplicate Intelligence</th>
+                  <th>Approval Authority</th>
+                  <th class="text-right">Decision</th>
+                </tr>
+              </thead>
+              <tbody id="team-approvals-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: FINANCE & SPEND ANALYTICS           -->
+      <!-- ========================================== -->
+      <section class="tab-pane" id="pane-finance-dashboard">
+        
+        <!-- KPI Row -->
+        <div class="kpi-grid">
+          <div class="kpi-card glass-card">
+            <div class="kpi-header">
+              <span class="kpi-title">August Total Spend</span>
+              <span class="kpi-icon bg-indigo-subtle">💳</span>
+            </div>
+            <div class="kpi-big-value" id="fin-total-spend">₹0</div>
+            <span class="kpi-subtext">Across all approved and paid claims</span>
+          </div>
+
+          <div class="kpi-card glass-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Paid Out</span>
+              <span class="kpi-icon bg-emerald-subtle">✅</span>
+            </div>
+            <div class="kpi-big-value text-emerald" id="fin-total-paid">₹0</div>
+            <span class="kpi-subtext">Immutable & finished disbursements</span>
+          </div>
+
+          <div class="kpi-card glass-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Awaiting Payout</span>
+              <span class="kpi-icon bg-amber-subtle">⏳</span>
+            </div>
+            <div class="kpi-big-value text-amber" id="fin-awaiting-payout">₹0</div>
+            <span class="kpi-subtext">Manager-approved, ready for payment</span>
+          </div>
+
+          <div class="kpi-card glass-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Limit Alerts</span>
+              <span class="kpi-icon bg-rose-subtle">🚨</span>
+            </div>
+            <div class="kpi-big-value text-rose" id="fin-overlimit-count">0</div>
+            <span class="kpi-subtext">Staff near or exceeding monthly policy limit</span>
+          </div>
+        </div>
+
+        <!-- Middle Row: Spend by Category + Payout Center -->
+        <div class="pane-grid-2col mt-6">
+          
+          <!-- Category Breakdown -->
+          <div class="card glass-card">
+            <div class="card-header">
+              <h3 class="card-title">Spend by Expense Category</h3>
+              <p class="card-subtitle">Who spent what under which category for month-end accounting.</p>
+            </div>
+            <div class="category-breakdown-list" id="category-breakdown-bars">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Payout Execution Center -->
+          <div class="card glass-card payout-center-card">
+            <div class="card-header flex-between">
+              <div>
+                <h3 class="card-title">Payout Disbursement Center</h3>
+                <p class="card-subtitle">Emulate bank transfers. Paid claims are permanently locked.</p>
+              </div>
+              <button type="button" class="btn btn-success btn-sm" id="btn-batch-payout">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Batch Pay All Approved</span>
+              </button>
+            </div>
+            <div class="payout-queue" id="payout-queue-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Employee Monthly Limit Tracker -->
+        <div class="card glass-card mt-6">
+          <div class="card-header flex-between">
+            <div>
+              <h3 class="card-title">Employee Monthly Allowance & Limit Tracker</h3>
+              <p class="card-subtitle">At month-end finance monitors who has gone over their limit or is nearing the cap.</p>
+            </div>
+            <span class="badge badge-outline">Monthly Policy Reset: 1st of month</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="limit-tracker-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Department</th>
+                  <th>Monthly Allowance</th>
+                  <th>Claimed Amount</th>
+                  <th>Remaining</th>
+                  <th>Utilization</th>
+                  <th>Policy Status</th>
+                </tr>
+              </thead>
+              <tbody id="limit-tracker-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 5: DUPLICATE INTELLIGENCE SANDBOX      -->
+      <!-- ========================================== -->
+      <section class="tab-pane" id="pane-duplicate-sandbox">
+        <div class="card glass-card">
+          <div class="card-header">
+            <div class="card-header-icon bg-rose-subtle">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div>
+              <h2 class="card-title">Duplicate Detection Engine & Sandbox</h2>
+              <p class="card-subtitle">Finance has paid twice before. This engine catches receipts sent the same day or 3 weeks later, even if typed differently.</p>
+            </div>
+          </div>
+
+          <div class="sandbox-comparison-grid">
+            <div class="sandbox-box">
+              <h4>Original Claim in Database</h4>
+              <div class="example-box">
+                <span class="badge badge-emerald">PAID</span>
+                <p><strong>Merchant:</strong> Swiggy - Meghana Foods</p>
+                <p><strong>Amount:</strong> ₹3,240.00</p>
+                <p><strong>Date:</strong> 2026-08-14</p>
+                <p class="text-muted font-mono text-sm">"SWIGGY ORDER #98124 Meghana Foods Indiranagar... Total: Rs 3,240"</p>
+              </div>
+            </div>
+
+            <div class="sandbox-vs">
+              <span>VS</span>
+            </div>
+
+            <div class="sandbox-box">
+              <h4>New Submission (Altered Wording)</h4>
+              <div class="example-box">
+                <span class="badge badge-warning">SUBMITTED (12 Days Later)</span>
+                <p><strong>Merchant:</strong> Swiggy India (Meghana Foods)</p>
+                <p><strong>Amount:</strong> ₹3,240.00</p>
+                <p><strong>Date:</strong> 2026-08-14</p>
+                <p class="text-muted font-mono text-sm">"Swiggy receipt Meghana Biryani food delivery for devs bill total 3240 rs"</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="sandbox-analysis-card mt-6">
+            <h3>Engine Analysis & Scoring</h3>
+            <div class="score-banner">
+              <div class="score-circle">96%</div>
+              <div class="score-meta">
+                <strong>High-Confidence Duplicate Match</strong>
+                <p>Identical transaction amount (₹3,240) + exact date match (14-Aug) + normalized vendor token overlap (Swiggy Meghana Foods) + text Jaccard similarity. Flagged before approval.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 6: SETTINGS & AI CONFIG                -->
+      <!-- ========================================== -->
+      <section class="tab-pane" id="pane-settings">
+        <div class="card glass-card max-w-xl">
+          <div class="card-header">
+            <h2 class="card-title">System Settings & AI Model</h2>
+            <p class="card-subtitle">Configure Google Gemini API key or customize duplicate detection thresholds.</p>
+          </div>
+          <form id="settings-form" class="mt-4">
+            <div class="form-group">
+              <label for="settings-gemini-key" class="form-label">Google Gemini API Key (Optional)</label>
+              <input type="password" id="settings-gemini-key" class="form-input" placeholder="AIzaSy...">
+              <small class="text-muted">If empty, ClaimFlow AI automatically uses its built-in advanced NLP Regex heuristic extraction engine.</small>
+            </div>
+            <div class="form-group mt-4">
+              <label for="settings-threshold" class="form-label">Duplicate Flagging Sensitivity: <span id="threshold-val">65%</span></label>
+              <input type="range" id="settings-threshold" min="40" max="95" value="65" class="form-range">
+            </div>
+            <button type="submit" class="btn btn-primary mt-4">Save Configuration</button>
+          </form>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Side-by-Side Duplicate Comparison Modal -->
+    <div class="modal-backdrop hidden" id="duplicate-modal">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-header">
+          <div class="modal-title-row">
+            <span class="modal-icon bg-rose-subtle">⚠️</span>
+            <div>
+              <h3 class="modal-title">Duplicate Receipt Comparison</h3>
+              <p class="modal-subtitle" id="modal-dup-subtitle">Review candidate claim against prior submission</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" id="btn-close-dup-modal">✕</button>
+        </div>
+        <div class="modal-body" id="modal-dup-body">
+          <!-- Dynamically populated -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btn-dismiss-dup-modal">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Claim Detail / Timeline Drawer Modal -->
+    <div class="modal-backdrop hidden" id="claim-drawer-modal">
+      <div class="modal-dialog modal-md">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title" id="drawer-title">Claim #CLM-2026-0811</h3>
+            <p class="modal-subtitle" id="drawer-subtitle">Complete lifecycle and audit history</p>
+          </div>
+          <button type="button" class="btn-close" id="btn-close-drawer">✕</button>
+        </div>
+        <div class="modal-body" id="drawer-body">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Payout Simulation Modal -->
+    <div class="modal-backdrop hidden" id="payout-sim-modal">
+      <div class="modal-dialog modal-sm text-center">
+        <div class="payout-sim-icon" id="payout-sim-icon">
+          <div class="spinner-ring"></div>
+        </div>
+        <h3 class="modal-title mt-4" id="payout-sim-title">Processing IMPS Bank Transfer...</h3>
+        <p class="text-muted mt-2" id="payout-sim-desc">Emulating corporate direct payout gateway.</p>
+        <div class="payout-receipt-box hidden mt-4" id="payout-sim-result">
+          <!-- Transaction Receipt Details -->
+        </div>
+        <div class="modal-footer justify-center hidden" id="payout-sim-footer">
+          <button type="button" class="btn btn-primary" id="btn-close-payout-sim">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
