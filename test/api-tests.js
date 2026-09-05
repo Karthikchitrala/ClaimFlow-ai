@@ -108,6 +108,28 @@ async function runTests() {
       `Expected status 403 Forbidden, got ${selfApproveRes.status}: ${JSON.stringify(selfApproveRes.body)}`
     );
 
+    // 5b. Anti-Self-Rejection Rule: Staff cannot reject own claim
+    const selfRejectRes = await request("POST", "/api/claims/CLM-2026-0811/reject", {
+      approverId: "usr_priya_sharma",
+      reason: "Self rejection test"
+    });
+    assert(
+      "Anti-Self-Rejection Rule (Staff Blocked)",
+      selfRejectRes.status === 403 && selfRejectRes.body.error?.includes("Policy Violation"),
+      `Expected status 403 Forbidden with policy violation, got: ${JSON.stringify(selfRejectRes.body)}`
+    );
+
+    // 5c. Valid Manager Rejection
+    const mgrRejectRes = await request("POST", "/api/claims/CLM-2026-0811/reject", {
+      approverId: "usr_vikram_malhotra",
+      reason: "Out of policy taxi route"
+    });
+    assert(
+      "Valid Manager Rejection",
+      mgrRejectRes.status === 200 && mgrRejectRes.body.claim?.status === "rejected",
+      `Expected status 200 rejected, got: ${JSON.stringify(mgrRejectRes.body)}`
+    );
+
     // 6. Immutability Rule: Paid claim cannot go backwards or be altered
     const editPaidRes = await request("PUT", "/api/claims/CLM-2026-0804", {
       amount: 1500,

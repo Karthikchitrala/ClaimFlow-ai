@@ -302,11 +302,11 @@ router.post("/claims/:id/reject", (req, res) => {
     });
   }
 
-  // Manager cannot reject their own claim
+  // Anti-self-approval rule: Employees and managers cannot reject/approve their own claim
   if (approverId && claim.userId === approverId) {
     return res.status(403).json({
       success: false,
-      error: "You cannot reject your own claim."
+      error: "Policy Violation: Employees and managers cannot reject their own expense claims. Please switch persona to Vikram Malhotra (Manager) above."
     });
   }
 

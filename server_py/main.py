@@ -125,6 +125,8 @@ def get_claims(
     approverId: Optional[str] = Query(None),
     status: Optional[str] = Query(None)
 ):
+    global claims
+    claims = load_cached_claims()
     filtered = list(claims)
     if userId:
         filtered = [c for c in filtered if c.get("userId") == userId]
@@ -142,13 +144,18 @@ def get_claims(
 
 @app.get("/api/claims/{claim_id}")
 def get_claim(claim_id: str):
+    global claims
     claim = next((c for c in claims if c.get("id") == claim_id), None)
+    if not claim:
+        claims = load_cached_claims()
+        claim = next((c for c in claims if c.get("id") == claim_id), None)
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
     return {"success": True, "claim": claim}
 
 @app.post("/api/claims", status_code=201)
 def create_claim(payload: ClaimCreate):
+    global claims
     user = next((u for u in users if u.get("id") == payload.userId), None)
     if not user:
         raise HTTPException(status_code=400, detail="Valid User ID is required")
@@ -182,7 +189,6 @@ def create_claim(payload: ClaimCreate):
         "id": claim_id,
         "userId": user["id"],
         "userName": user["name"],
-        "userRole": user["role"],
         "department": user["department"],
         "merchant": payload.merchant.strip(),
         "amount": payload.amount,
@@ -237,7 +243,11 @@ def create_claim(payload: ClaimCreate):
 
 @app.put("/api/claims/{claim_id}")
 def update_claim(claim_id: str, payload: ClaimUpdate):
+    global claims
     claim = next((c for c in claims if c.get("id") == claim_id), None)
+    if not claim:
+        claims = load_cached_claims()
+        claim = next((c for c in claims if c.get("id") == claim_id), None)
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
@@ -261,6 +271,9 @@ def update_claim(claim_id: str, payload: ClaimUpdate):
     if payload.extractedItems is not None:
         claim["extractedItems"] = [item.model_dump() for item in payload.extractedItems]
 
+    if "timeline" not in claim:
+        claim["timeline"] = []
+
     claim["timeline"].append({
         "action": "Claim details updated by employee",
         "by": claim["userName"],
@@ -277,7 +290,11 @@ def update_claim(claim_id: str, payload: ClaimUpdate):
 
 @app.post("/api/claims/{claim_id}/approve")
 def approve_claim(claim_id: str, payload: ApprovalRequest):
+    global claims
     claim = next((c for c in claims if c.get("id") == claim_id), None)
+    if not claim:
+        claims = load_cached_claims()
+        claim = next((c for c in claims if c.get("id") == claim_id), None)
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
@@ -288,7 +305,7 @@ def approve_claim(claim_id: str, payload: ApprovalRequest):
     if payload.approverId and claim.get("userId") == payload.approverId:
         raise HTTPException(
             status_code=403,
-            detail="Policy Violation: Managers cannot sign off on their own expense claims. This claim must be signed off by senior management."
+            detail="Policy Violation: Employees and managers cannot sign off on their own expense claims. Please switch persona to Vikram Malhotra (Manager) above."
         )
 
     approver = next((u for u in users if u.get("id") == payload.approverId), None)
@@ -298,6 +315,9 @@ def approve_claim(claim_id: str, payload: ApprovalRequest):
     claim["approvedAt"] = now
     claim["approverId"] = payload.approverId
     claim["approverName"] = approver["name"] if approver else "Manager"
+
+    if "timeline" not in claim:
+        claim["timeline"] = []
 
     claim["timeline"].append({
         "action": "Claim approved & signed off",
@@ -310,7 +330,11 @@ def approve_claim(claim_id: str, payload: ApprovalRequest):
 
 @app.post("/api/claims/{claim_id}/reject")
 def reject_claim(claim_id: str, payload: RejectionRequest):
+    global claims
     claim = next((c for c in claims if c.get("id") == claim_id), None)
+    if not claim:
+        claims = load_cached_claims()
+        claim = next((c for c in claims if c.get("id") == claim_id), None)
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
@@ -318,11 +342,17 @@ def reject_claim(claim_id: str, payload: RejectionRequest):
         raise HTTPException(status_code=400, detail="This claim is already PAID. A paid claim cannot be rejected or reversed.")
 
     if payload.approverId and claim.get("userId") == payload.approverId:
-        raise HTTPException(status_code=403, detail="You cannot reject your own claim.")
+        raise HTTPException(
+            status_code=403,
+            detail="Policy Violation: Employees and managers cannot reject their own expense claims. Please switch persona to Vikram Malhotra (Manager) above."
+        )
 
     approver = next((u for u in users if u.get("id") == payload.approverId), None)
     claim["status"] = "rejected"
     claim["rejectionReason"] = payload.reason or "Claim rejected by reviewer"
+
+    if "timeline" not in claim:
+        claim["timeline"] = []
 
     claim["timeline"].append({
         "action": f"Claim rejected: {claim['rejectionReason']}",
@@ -339,7 +369,11 @@ def reject_claim(claim_id: str, payload: RejectionRequest):
 
 @app.post("/api/claims/{claim_id}/pay")
 def pay_claim(claim_id: str):
+    global claims
     claim = next((c for c in claims if c.get("id") == claim_id), None)
+    if not claim:
+        claims = load_cached_claims()
+        claim = next((c for c in claims if c.get("id") == claim_id), None)
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
@@ -352,6 +386,9 @@ def pay_claim(claim_id: str):
     claim["status"] = "paid"
     claim["paidAt"] = now
     claim["payoutRef"] = txn_ref
+
+    if "timeline" not in claim:
+        claim["timeline"] = []
 
     claim["timeline"].append({
         "action": f"Emulated Payout Completed (Ref: {txn_ref}). Claim is finalized & locked.",

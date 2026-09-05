@@ -35,6 +35,9 @@ def run_tests():
             failed += 1
 
     try:
+        # 0. Clean reset
+        client.post("/api/reset-data")
+
         # 1. Health check
         r = client.get("/api/health")
         assert_test("Health Check", r.status_code == 200 and r.json().get("status") == "healthy")
@@ -76,8 +79,27 @@ def run_tests():
         r = client.post("/api/claims/CLM-2026-0819-AWS/approve", json=self_approve_payload)
         assert_test(
             "Anti-Self-Approval Rule (Manager Blocked with 403)",
-            r.status_code == 403,
-            f"Expected 403, got {r.status_code}: {r.text}"
+            r.status_code == 403 and "Policy Violation" in r.json().get("detail", ""),
+            f"Expected 403 with detail, got {r.status_code}: {r.text}"
+        )
+
+        # 5b. Anti-Self-Rejection Rule: Staff cannot reject own claim
+        self_reject_payload = {"approverId": "usr_priya_sharma", "reason": "Self rejection test"}
+        r = client.post("/api/claims/CLM-2026-0811/reject", json=self_reject_payload)
+        assert_test(
+            "Anti-Self-Rejection Rule (Staff Blocked with 403 & Descriptive Error)",
+            r.status_code == 403 and "Policy Violation" in r.json().get("detail", ""),
+            f"Expected 403 with policy detail, got {r.status_code}: {r.text}"
+        )
+
+        # 5c. Valid Manager Rejection
+        mgr_reject_payload = {"approverId": "usr_vikram_malhotra", "reason": "Out of policy taxi route"}
+        r = client.post("/api/claims/CLM-2026-0811/reject", json=mgr_reject_payload)
+        rej_data = r.json().get("claim", {})
+        assert_test(
+            "Valid Manager Rejection (Status 200 & Rejected)",
+            r.status_code == 200 and rej_data.get("status") == "rejected" and rej_data.get("rejectionReason") == "Out of policy taxi route",
+            f"Got: {r.status_code}, claim={rej_data}"
         )
 
         # 6. Immutable Paid Claim Rule: Paid claim cannot be altered

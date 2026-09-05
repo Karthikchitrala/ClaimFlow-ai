@@ -160,15 +160,22 @@ export function initManagerApproval(showToast) {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.id;
         btn.disabled = true;
+        const origText = btn.textContent;
+        btn.textContent = "Approving...";
         try {
           const res = await state.approveClaim(id);
-          if (res.success) {
+          if (res && res.success) {
             showToast("Claim signed off and approved for finance payout!", "success");
           } else {
-            showToast("Approval error: " + res.error, "error");
+            const msg = res?.error || res?.detail || res?.message || "Unable to approve claim";
+            showToast("Approval error: " + msg, "error");
+            btn.disabled = false;
+            btn.textContent = origText;
           }
         } catch (e) {
-          showToast("Approval failed: " + e.message, "error");
+          showToast("Approval failed: " + (e.message || "Operation failed"), "error");
+          btn.disabled = false;
+          btn.textContent = origText;
         }
       });
     });
@@ -178,18 +185,30 @@ export function initManagerApproval(showToast) {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.id;
         const reason = prompt("Enter reason for rejecting this claim (sent to employee):");
-        if (!reason) return;
+        if (reason === null) return;
+        const trimmed = reason.trim();
+        if (!trimmed) {
+          showToast("Rejection cancelled: A reason is required.", "warning");
+          return;
+        }
 
         btn.disabled = true;
+        const origText = btn.textContent;
+        btn.textContent = "Rejecting...";
         try {
-          const res = await state.rejectClaim(id, reason);
-          if (res.success) {
+          const res = await state.rejectClaim(id, trimmed);
+          if (res && res.success) {
             showToast("Claim rejected.", "warning");
           } else {
-            showToast("Rejection error: " + res.error, "error");
+            const msg = res?.error || res?.detail || res?.message || "Unable to reject claim";
+            showToast("Rejection error: " + msg, "error");
+            btn.disabled = false;
+            btn.textContent = origText;
           }
         } catch (e) {
-          showToast("Error: " + e.message, "error");
+          showToast("Error: " + (e.message || "Operation failed"), "error");
+          btn.disabled = false;
+          btn.textContent = origText;
         }
       });
     });

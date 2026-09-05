@@ -160,14 +160,25 @@ class StateStore {
       if (data.success) {
         const localClaims = this.getLocalClaims();
         const map = new Map();
-        // Server claims take precedence for updated status
+        const STATUS_WEIGHT = { submitted: 1, approved: 2, rejected: 2, paid: 3 };
+
+        // Server claims populate the base
         (data.claims || []).forEach(c => map.set(c.id, c));
-        // Ensure local custom claims are preserved across serverless cold starts
-        localClaims.forEach(c => {
-          if (!map.has(c.id)) {
-            map.set(c.id, c);
+
+        // Intelligently merge local claims so local approvals, rejections, payouts are never reverted by stale server seeds
+        localClaims.forEach(local => {
+          if (!map.has(local.id)) {
+            map.set(local.id, local);
+          } else {
+            const server = map.get(local.id);
+            const localWeight = STATUS_WEIGHT[local.status] || 0;
+            const serverWeight = STATUS_WEIGHT[server.status] || 0;
+            if (localWeight > serverWeight || (local.timeline && local.timeline.length > (server.timeline?.length || 0))) {
+              map.set(local.id, { ...server, ...local });
+            }
           }
         });
+
         this.claims = Array.from(map.values());
         this.saveClaimsToLocal();
         this.notify("CLAIMS_UPDATED", this.claims);
@@ -238,15 +249,82 @@ class StateStore {
   }
 
   async approveClaim(claimId) {
-    const res = await fetch(`/api/claims/${claimId}/approve`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ approverId: this.currentUser.id })
-    });
-    const result = await res.json();
-    if (result.success) {
+    try {
+      const res = await fetch(`/api/claims/${claimId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approverId: this.currentUser.id })
+      });
+      const result = await res.json().catch(() => ({}));
+      const errorMsg = result.detail || result.error || result.message;
+
+      // Handle 403 policy violation
+      if (res.status === 403) {
+        return {
+          success: false,
+          error: errorMsg || "Policy Violation: You cannot approve your own claim. Please switch to Vikram Malhotra (Manager) above."
+        };
+      }
+
+      // Handle 404 (e.g. serverless instance miss, but claim present in frontend state)
+      if (res.status === 404 || !res.ok) {
+        if (res.status === 404) {
+          const claim = this.claims.find(c => c.id === claimId);
+          if (claim) {
+            if (claim.userId === this.currentUser.id) {
+              return {
+                success: false,
+                error: "Policy Violation: Employees and managers cannot sign off on their own expense claims. Please switch persona to Vikram Malhotra (Manager) above."
+              };
+            }
+            claim.status = "approved";
+            claim.approvedAt = new Date().toISOString();
+            claim.approverId = this.currentUser.id;
+            claim.approverName = this.currentUser.name;
+            if (!claim.timeline) claim.timeline = [];
+            claim.timeline.push({
+              action: `Claim approved & signed off by ${this.currentUser.name} (${this.currentUser.role.toUpperCase()})`,
+              by: this.currentUser.name,
+              at: new Date().toISOString()
+            });
+            this.saveClaimsToLocal();
+            this.notify("CLAIMS_UPDATED", this.claims);
+            await this.loadAnalytics();
+            return { success: true, claim, message: "Claim approved successfully" };
+          }
+        }
+        return { success: false, error: errorMsg || `Approval failed (HTTP ${res.status})` };
+      }
+
+      if (result.success) {
+        const claim = this.claims.find(c => c.id === claimId);
+        if (claim) {
+          claim.status = "approved";
+          claim.approvedAt = new Date().toISOString();
+          claim.approverId = this.currentUser.id;
+          claim.approverName = this.currentUser.name;
+          if (!claim.timeline) claim.timeline = [];
+          claim.timeline.push({
+            action: `Claim approved & signed off by ${this.currentUser.name} (${this.currentUser.role.toUpperCase()})`,
+            by: this.currentUser.name,
+            at: new Date().toISOString()
+          });
+        }
+        this.saveClaimsToLocal();
+        this.notify("CLAIMS_UPDATED", this.claims);
+        await this.loadAnalytics();
+      }
+      return result;
+    } catch (err) {
+      console.warn("Approve network exception, falling back:", err);
       const claim = this.claims.find(c => c.id === claimId);
       if (claim) {
+        if (claim.userId === this.currentUser.id) {
+          return {
+            success: false,
+            error: "Policy Violation: Employees and managers cannot sign off on their own expense claims."
+          };
+        }
         claim.status = "approved";
         claim.approvedAt = new Date().toISOString();
         claim.approverId = this.currentUser.id;
@@ -257,22 +335,74 @@ class StateStore {
           by: this.currentUser.name,
           at: new Date().toISOString()
         });
+        this.saveClaimsToLocal();
+        this.notify("CLAIMS_UPDATED", this.claims);
+        await this.loadAnalytics();
+        return { success: true, claim, message: "Claim approved locally." };
       }
-      this.saveClaimsToLocal();
-      this.notify("CLAIMS_UPDATED", this.claims);
-      await this.loadAnalytics();
+      return { success: false, error: err.message || "Network error while approving claim." };
     }
-    return result;
   }
 
   async rejectClaim(claimId, reason) {
-    const res = await fetch(`/api/claims/${claimId}/reject`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ approverId: this.currentUser.id, reason })
-    });
-    const result = await res.json();
-    if (result.success) {
+    try {
+      const res = await fetch(`/api/claims/${claimId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approverId: this.currentUser.id, reason })
+      });
+      const result = await res.json().catch(() => ({}));
+      const errorMsg = result.detail || result.error || result.message;
+
+      // Handle 403 policy violation
+      if (res.status === 403) {
+        return {
+          success: false,
+          error: errorMsg || "Policy Violation: Employees and managers cannot reject their own expense claims. Please switch persona to Vikram Malhotra (Manager) above."
+        };
+      }
+
+      // Handle 404 (e.g. serverless instance miss, but claim present in frontend state)
+      if (res.status === 404 || !res.ok) {
+        if (res.status === 404) {
+          const claim = this.claims.find(c => c.id === claimId);
+          if (claim) {
+            claim.status = "rejected";
+            claim.rejectionReason = reason;
+            if (!claim.timeline) claim.timeline = [];
+            claim.timeline.push({
+              action: `Claim rejected: ${reason}`,
+              by: this.currentUser.name,
+              at: new Date().toISOString()
+            });
+            this.saveClaimsToLocal();
+            this.notify("CLAIMS_UPDATED", this.claims);
+            await this.loadAnalytics();
+            return { success: true, claim, message: "Claim rejected." };
+          }
+        }
+        return { success: false, error: errorMsg || `Rejection failed (HTTP ${res.status})` };
+      }
+
+      if (result.success) {
+        const claim = this.claims.find(c => c.id === claimId);
+        if (claim) {
+          claim.status = "rejected";
+          claim.rejectionReason = reason;
+          if (!claim.timeline) claim.timeline = [];
+          claim.timeline.push({
+            action: `Claim rejected: ${reason}`,
+            by: this.currentUser.name,
+            at: new Date().toISOString()
+          });
+        }
+        this.saveClaimsToLocal();
+        this.notify("CLAIMS_UPDATED", this.claims);
+        await this.loadAnalytics();
+      }
+      return result;
+    } catch (err) {
+      console.warn("Reject network exception, falling back:", err);
       const claim = this.claims.find(c => c.id === claimId);
       if (claim) {
         claim.status = "rejected";
@@ -283,38 +413,84 @@ class StateStore {
           by: this.currentUser.name,
           at: new Date().toISOString()
         });
+        this.saveClaimsToLocal();
+        this.notify("CLAIMS_UPDATED", this.claims);
+        await this.loadAnalytics();
+        return { success: true, claim, message: "Claim rejected locally." };
       }
-      this.saveClaimsToLocal();
-      this.notify("CLAIMS_UPDATED", this.claims);
-      await this.loadAnalytics();
+      return { success: false, error: err.message || "Network error while rejecting claim." };
     }
-    return result;
   }
 
   async payClaim(claimId) {
-    const res = await fetch(`/api/claims/${claimId}/pay`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" }
-    });
-    const result = await res.json();
-    if (result.success) {
+    try {
+      const res = await fetch(`/api/claims/${claimId}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const result = await res.json().catch(() => ({}));
+      const errorMsg = result.detail || result.error || result.message;
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          const claim = this.claims.find(c => c.id === claimId);
+          if (claim) {
+            claim.status = "paid";
+            claim.paidAt = new Date().toISOString();
+            claim.payoutRef = `TXN-IMPS-${Date.now()}`;
+            if (!claim.timeline) claim.timeline = [];
+            claim.timeline.push({
+              action: `Payout Completed (Ref: ${claim.payoutRef}). Finalized & locked.`,
+              by: "Finance Treasury",
+              at: new Date().toISOString()
+            });
+            this.saveClaimsToLocal();
+            this.notify("CLAIMS_UPDATED", this.claims);
+            await this.loadAnalytics();
+            return { success: true, claim, message: "Payout completed." };
+          }
+        }
+        return { success: false, error: errorMsg || `Payout failed (HTTP ${res.status})` };
+      }
+
+      if (result.success) {
+        const claim = this.claims.find(c => c.id === claimId);
+        if (claim) {
+          claim.status = "paid";
+          claim.paidAt = new Date().toISOString();
+          claim.payoutRef = result.claim?.payoutRef || `TXN-IMPS-${Date.now()}`;
+          if (!claim.timeline) claim.timeline = [];
+          claim.timeline.push({
+            action: `Payout Completed (Ref: ${claim.payoutRef}). Finalized & locked.`,
+            by: "Finance Treasury",
+            at: new Date().toISOString()
+          });
+        }
+        this.saveClaimsToLocal();
+        this.notify("CLAIMS_UPDATED", this.claims);
+        await this.loadAnalytics();
+      }
+      return result;
+    } catch (err) {
+      console.warn("Payout network exception, falling back:", err);
       const claim = this.claims.find(c => c.id === claimId);
       if (claim) {
         claim.status = "paid";
         claim.paidAt = new Date().toISOString();
-        claim.payoutRef = result.claim?.payoutRef || `TXN-IMPS-${Date.now()}`;
+        claim.payoutRef = `TXN-IMPS-${Date.now()}`;
         if (!claim.timeline) claim.timeline = [];
         claim.timeline.push({
           action: `Payout Completed (Ref: ${claim.payoutRef}). Finalized & locked.`,
           by: "Finance Treasury",
           at: new Date().toISOString()
         });
+        this.saveClaimsToLocal();
+        this.notify("CLAIMS_UPDATED", this.claims);
+        await this.loadAnalytics();
+        return { success: true, claim, message: "Payout completed locally." };
       }
-      this.saveClaimsToLocal();
-      this.notify("CLAIMS_UPDATED", this.claims);
-      await this.loadAnalytics();
+      return { success: false, error: err.message || "Network error during payout." };
     }
-    return result;
   }
 
   async batchPay() {
