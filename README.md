@@ -25,7 +25,7 @@ ClaimFlow AI provides a **zero-friction setup** with both **Python (FastAPI)** a
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/ClaimFlow-ai.git
+   git clone https://github.com/Karthikchitrala/ClaimFlow-ai.git
    cd ClaimFlow-ai
    ```
 
