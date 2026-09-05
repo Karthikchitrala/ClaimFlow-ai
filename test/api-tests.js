@@ -2,8 +2,11 @@
 // Automated verification suite for ClaimFlow AI business rules & edge cases
 
 import http from "http";
+import app from "../server/server.js";
 
-const BASE_URL = "http://localhost:3000";
+const PORT = process.env.TEST_PORT || 3001;
+const BASE_URL = `http://localhost:${PORT}`;
+let server;
 
 function request(method, path, body = null) {
   return new Promise((resolve, reject) => {
@@ -58,6 +61,10 @@ async function runTests() {
   }
 
   try {
+    server = app.listen(PORT);
+    // Give server a moment to listen
+    await new Promise(r => setTimeout(r, 100));
+
     // 1. Health Check
     const health = await request("GET", "/api/health");
     assert("Health Check", health.status === 200 && health.body.status === "healthy");
@@ -137,8 +144,10 @@ async function runTests() {
     console.log(`Results: ${passed} passed, ${failed} failed`);
     console.log("==================================================");
 
+    if (server) server.close();
     process.exit(failed > 0 ? 1 : 0);
   } catch (err) {
+    if (server) server.close();
     console.error("Test execution failed:", err);
     process.exit(1);
   }
