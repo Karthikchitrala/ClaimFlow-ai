@@ -143,36 +143,4 @@ Switch personas with 1-click in the top navigation bar to test all perspectives:
 
 ---
 
-## 🧪 Automated Test Verification
 
-The project includes an automated test suite verifying all core business rules:
-
-```bash
-python test/test_api_py.py
-```
-
-Output:
-```
-==================================================
-Testing ClaimFlow AI Python/FastAPI Backend
-==================================================
-
-  [PASS] Health Check
-  [PASS] Realistic Users Seeded
-  [PASS] AI Extraction - Messy Auto Ride
-  [PASS] Fuzzy Duplicate Detection
-  [PASS] Anti-Self-Approval Rule (Manager Blocked with 403)
-  [PASS] Immutable Paid Claim Rule (Blocked with 400)
-  [PASS] Finance Analytics - Limit Tracking
-  [PASS] Finance Single Payout Emulation
-
-==================================================
-Results: 8 passed, 0 failed
-==================================================
-```
-
----
-
-## 🎥 Video Walkthrough Guide (3–5 Minutes)
-
-For recording your submission video, follow the structured script provided in [`VIDEO_WALKTHROUGH_SCRIPT.md`](file:///c:/Users/S-Tech/Desktop/ClaimFlow-ai/VIDEO_WALKTHROUGH_SCRIPT.md).
